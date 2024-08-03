@@ -1,0 +1,92 @@
+from dronekit import connect, VehicleMode, LocationGlobalRelative
+import time
+import argparse
+import geopy.distance
+
+def connectMyCopter():
+    parser = argparse.ArgumentParser(description='commands')
+    parser.add_argument('--connect')
+    args = parser.parse_args()
+
+    connection_string = args.connect
+    baud_rate = 57600
+    print("\nConnecting to vehicle on: %s" % connection_string)
+    vehicle = connect(connection_string, baud=baud_rate, wait_ready=True)
+    return vehicle
+
+def arm_and_takeoff(aTargetAltitude):
+    print("Basic pre-arm checks")
+    while not vehicle.is_armable:
+        print(" Waiting for vehicle to initialise...")
+        time.sleep(1)
+
+    print("Arming motors")
+    vehicle.mode = VehicleMode("GUIDED")
+    vehicle.armed = True
+    time.sleep(3)
+
+    print("Taking off!")
+    vehicle.simple_takeoff(aTargetAltitude)  # Take off to target altitude
+
+    while True:
+        print(" Altitude: ", vehicle.location.global_relative_frame.alt)      
+        if vehicle.location.global_relative_frame.alt >= aTargetAltitude * 0.95:
+            print("Reached target altitude")
+            break
+        time.sleep(1)
+
+def get_distance(cord1, cord2):
+    return (geopy.distance.geodesic(cord1, cord2).km) * 1000        
+
+def goto_location(to_lat, to_long):
+    print(" Global Location (relative altitude): %s" % vehicle.location.global_relative_frame)
+    curr_lat = vehicle.location.global_relative_frame.lat
+    curr_lon = vehicle.location.global_relative_frame.lon
+    curr_alt = vehicle.location.global_relative_frame.alt
+
+    to_lat = to_lat
+    to_lon = to_long
+    to_alt = curr_alt
+
+    to_point = LocationGlobalRelative(to_lat, to_lon, to_alt)
+    vehicle.simple_goto(to_point, groundspeed=8)
+    
+    to_cord = (to_lat, to_lon)
+    while True:
+        curr_lat = vehicle.location.global_relative_frame.lat
+        curr_lon = vehicle.location.global_relative_frame.lon
+        curr_cord = (curr_lat, curr_lon)
+        print("curr location: {}".format(curr_cord))
+        distance = get_distance(curr_cord, to_cord)
+        print("distance remaining {}".format(distance))
+        if distance <= 2:
+            print("Reached within 2 meters of target location...")
+            break
+        time.sleep(1)
+
+def main():
+    # Hard-coded list of coordinates
+    coordinates_list = [
+        {'latitude': 34.052235, 'longitude': -118.243683},  # Example coordinates
+        {'latitude': 36.169941, 'longitude': -115.139832},  # Example coordinates
+        # Add more coordinates as needed
+    ]
+
+    vehicle = connectMyCopter()
+    time.sleep(2)
+    ht = 20
+    arm_and_takeoff(ht)
+
+    for coord in coordinates_list:
+        latitude = coord['latitude']
+        longitude = coord['longitude']
+        print(f"Navigating to latitude: {latitude}, longitude: {longitude}")
+        goto_location(latitude, longitude)
+        time.sleep(3)  # Stay at the location for a while
+
+    print("Returning to Launch")
+    vehicle.mode = VehicleMode("RTL")
+    time.sleep(10)  # Wait for the drone to return to launch
+
+if __name__ == "__main__":
+    main()
