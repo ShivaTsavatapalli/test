@@ -1,0 +1,21 @@
+import serial
+import time
+
+# Configure the serial port
+ser = serial.Serial('/dev/ttyS0', 9600, timeout=1)
+
+# Give time for GSM module to initialize
+time.sleep(5)
+
+# Function to read SMS
+def read_sms():
+    ser.write(b'AT+CMGF=1\r')  # Set SMS to text mode
+    time.sleep(1)
+    ser.write(b'AT+CMGL="ALL"\r')  # List all SMS messages
+    time.sleep(2)
+    while ser.in_waiting:
+        print(ser.read(ser.in_waiting).decode())
+
+# Example usage
+read_sms()
+ser.close()
