@@ -1,0 +1,22 @@
+import serial
+import time
+
+# Configure the serial port
+ser = serial.Serial('/dev/ttyS0', 9600, timeout=1)
+
+# Give time for GSM module to initialize
+time.sleep(5)
+
+# Function to send SMS
+def send_sms(phone_number, message):
+    ser.write(b'AT+CMGF=1\r')  # Set SMS to text mode
+    time.sleep(1)
+    ser.write(f'AT+CMGS="{phone_number}"\r'.encode())  # Set recipient number
+    time.sleep(1)
+    ser.write(f'{message}\r'.encode())  # Set message content
+    ser.write(b'\x1A')  # End of message
+    time.sleep(1)
+
+# Example usage
+send_sms("+1234567890", "Hello from Raspberry Pi!")
+ser.close()
